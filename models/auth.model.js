@@ -19,6 +19,27 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  coins: {
+    type: Number,
+    default: 0,
+  },
+  referralCode: {
+    type: String,
+    unique: true,
+  },
+  lastDailyRewardDate: {
+    type: Date,
+  },
+  dailyLoginStreak: {
+    type: Number,
+    default: 0,
+  },
+  referredBy: {
+    type: String,
+  },
+  refferals: {
+    type: [String],
+  },
   isVerified: {
     type: Boolean,
     default: false,
