@@ -36,7 +36,14 @@ export const verifyEmail = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Email verified successfully"
+      message: "Email verified successfully",
+      user: {
+        ...user._doc,
+        password:  undefined,
+        lastLogin: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+      }
     });
   } catch (err) {
     console.error(err.message);
@@ -63,6 +70,7 @@ export const register = async (req, res) => {
     const verifcationCodeExpires = ExpiresOTP();
     const user = await User.create({
       email,
+      name: email.split('@')[0],
       password: hashPassword,
       verificationToken: verificationCode,
       verificationTokenExpires: verifcationCodeExpires,
@@ -79,6 +87,11 @@ export const register = async (req, res) => {
       user: {
         ...user._doc,
         password: undefined,
+        lastLogin: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
+        verificationToken: undefined,
+        verificationTokenExpires: undefined,
       }
     })
 
