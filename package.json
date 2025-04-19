@@ -25,6 +25,7 @@
     "nodemailer": "^6.10.1",
     "nodeman": "^1.1.2",
     "nodemon": "^3.1.9",
-    "otp-generator": "^4.0.1"
+    "otp-generator": "^4.0.1",
+    "stripe": "^18.0.0"
   }
 }

@@ -84,7 +84,7 @@ export const register = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'User Created Successfully',
-      user: {
+      data: {
         ...user._doc,
         password: undefined,
         lastLogin: undefined,
@@ -154,10 +154,11 @@ export const login = async (req, res) => {
       success: true,
       message: "Login successful",
       user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        isVerified: user.isVerified
+        ...user._doc,
+        password:  undefined,
+        lastLogin: undefined,
+        createdAt: undefined,
+        updatedAt: undefined,
       }
     });
   } catch (error) {
