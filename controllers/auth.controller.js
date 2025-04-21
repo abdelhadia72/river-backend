@@ -53,7 +53,7 @@ export const verifyEmail = async (req, res) => {
 
 
 export const register = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, referralCode } = req.body;
   console.log("email", email);
   try{
     if(!email || !password){
@@ -68,13 +68,48 @@ export const register = async (req, res) => {
     const hashPassword = await bcrypt.hash(password, 10);
     const verificationCode = OTPCode();
     const verifcationCodeExpires = ExpiresOTP();
+
+    // Generate a unique referral code for the new user
+    const newReferralCode = email.split('@')[0] + Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Create new user with referral code
     const user = await User.create({
       email,
       name: email.split('@')[0],
       password: hashPassword,
       verificationToken: verificationCode,
       verificationTokenExpires: verifcationCodeExpires,
-    })
+      referralCode: newReferralCode,
+      // Store referrer's code if provided
+      referredBy: referralCode || null,
+      // Give new user initial coins (0 by default)
+      coins: 0,
+      // Initialize empty referrals array
+      refferals: []
+    });
+
+    // Add user's own ID to their referrals list
+    user.refferals.push(user._id);
+
+    // If a referral code was provided, validate and process it
+    if (referralCode) {
+      const referrer = await User.findOne({ referralCode });
+      if (referrer) {
+        // Award coins to both the referrer and the new user
+        referrer.coins += 10; // Referrer gets 10 coins
+        user.coins += 50;     // New user gets 50 coins
+
+        // Add this user to referrer's referrals list
+        if (!referrer.refferals) {
+          referrer.refferals = [];
+        }
+        referrer.refferals.push(user.email);
+
+        await referrer.save();
+
+        console.log(`Referral bonus added: ${referrer.email} (+10 coins), ${user.email} (+50 coins)`);
+      }
+    }
 
     await user.save();
 
@@ -239,40 +274,42 @@ export const forgetPassword = async (req, res) => {
 
 export const resetOTPToken = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email } = req.body;
 
-    if (!email || !otp) {
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: "Email and OTP are required"
+        message: "Email is required"
       });
     }
 
-    const user = await User.findOne({
-      email,
-      passwordResetToken: otp,
-      passwordResetExpires: { $gt: Date.now() }
-    });
-
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
-        message: "Invalid or expired OTP"
+        message: "User with this email doesn't exist"
       });
     }
 
-    // Verify OTP is valid and not expired
+    const resetCode = OTPCode();
+    const resetCodeExpires = ExpiresOTP();
+
+    user.passwordResetToken = resetCode;
+    user.passwordResetExpires = resetCodeExpires;
+    await user.save();
+
+    await sendVerificationEmail(email, resetCode, 'password_reset');
+
     res.status(200).json({
       success: true,
-      message: "OTP verified successfully",
-      userId: user._id
+      message: "New password reset OTP sent to your email"
     });
 
   } catch (error) {
-    console.error("OTP verification error:", error.message);
+    console.error("OTP reset error:", error.message);
     res.status(500).json({
       success: false,
-      message: "Server error during OTP verification"
+      message: "Server error during OTP reset"
     });
   }
 }
@@ -323,3 +360,70 @@ export const resetPassword = async (req, res) => {
     });
   }
 }
+
+export const me = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authenticated"
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        isVerified: user.isVerified,
+        coins: user.coins,
+        createdAt: user.createdAt,
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching user profile:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching user profile"
+    });
+  }
+};
+
+export const check = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        isAuthenticated: false,
+        message: "Not authenticated"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      isAuthenticated: true,
+      user: {
+        _id: req.user._id,
+        email: req.user.email,
+        name: req.user.name
+      }
+    });
+  } catch (error) {
+    console.error("Auth check error:", error.message);
+    res.status(500).json({
+      success: false,
+      isAuthenticated: false,
+      message: "Server error during authentication check"
+    });
+  }
+};
