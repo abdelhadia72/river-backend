@@ -169,8 +169,3 @@ river-backend/
 └── package.json        # Dependencies
 ```
 
-## 📝 License
-
-This project is licensed under the MIT License
-
----
